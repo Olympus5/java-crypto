@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -17,7 +16,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.*;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
@@ -114,5 +112,22 @@ class JcaTest {
 
         System.out.println(stringBuilder);
         System.out.println(ConverterHelper.bytesToHex(dis.getMessageDigest().digest()));
+    }
+
+    @Test
+    void dataSignature() throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+        final KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(1024, new SecureRandom());
+        final KeyPair keyPair = keyPairGenerator.generateKeyPair();
+        final Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initSign(keyPair.getPrivate(), new SecureRandom());
+        signature.update("Hello world!".getBytes());
+
+        final byte[] signatureBytes = signature.sign();
+        System.out.println(ConverterHelper.bytesToHex(signatureBytes));
+
+        signature.initVerify(keyPair.getPublic());
+        signature.update("Hello world!".getBytes());
+        System.out.println("Résultat signature: " + signature.verify(signatureBytes));
     }
 }
