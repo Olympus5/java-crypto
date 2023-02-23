@@ -19,6 +19,7 @@ import java.security.spec.*;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -211,5 +212,35 @@ class JcaTest {
         final PrivateKey privateKey = keyPairGenerator.generateKeyPair().getPrivate();
         final KeyFactory keyFactory = KeyFactory.getInstance("RSA");
         final RSAPrivateKeySpec privateKeySpec = keyFactory.getKeySpec(privateKey, RSAPrivateKeySpec.class);
+    }
+
+    @Test
+    void newSecureRandom() {
+        final SecureRandom secureRandom = new SecureRandom();
+        final int randomValue = secureRandom.nextInt();
+        System.out.println("random value: " + randomValue);
+    }
+
+    @Test
+    void secureRandom() throws NoSuchAlgorithmException {
+        final SecureRandom secureRandom = SecureRandom.getInstance("SHA1PRNG");
+        final int randomValue = secureRandom.nextInt();
+        System.out.println("random value: " + randomValue);
+    }
+
+    @Test
+    void microsoftSecureRandom() throws NoSuchAlgorithmException, NoSuchProviderException {
+        final SecureRandom secureRandom = SecureRandom.getInstance("Windows-PRNG", "SunMSCAPI");
+        final int randomValue = secureRandom.nextInt();
+        System.out.println("random value: " + randomValue);
+    }
+
+    @Test
+    void secureRandomWithSeed() throws NoSuchAlgorithmException {
+        final SecureRandom secureRandom = SecureRandom.getInstance("SHA1PRNG");
+        final byte[] seed = secureRandom.generateSeed(256);
+        secureRandom.setSeed(seed);
+        final int randomValue = secureRandom.nextInt();
+        System.out.println("random value: " + randomValue);
     }
 }
