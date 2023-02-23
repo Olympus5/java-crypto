@@ -15,6 +15,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.*;
+import java.security.spec.*;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
@@ -171,5 +172,44 @@ class JcaTest {
         System.out.println(privateKey);
         final PublicKey publicKey = keyPair.getPublic();
         System.out.println(publicKey);
+    }
+
+    @Test
+    void keySpecToPublicKey() throws NoSuchAlgorithmException, InvalidKeySpecException {
+        final KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(1024);
+        final PublicKey publicKey = keyPairGenerator.generateKeyPair().getPublic();
+
+        System.out.println(ConverterHelper.bytesToHex(publicKey.getEncoded()));
+
+        final KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        final EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKey.getEncoded());
+        final PublicKey publicKey2 = keyFactory.generatePublic(publicKeySpec);
+
+        System.out.println(ConverterHelper.bytesToHex(publicKey2.getEncoded()));
+    }
+
+    @Test
+    void keySpecToPrivateKey() throws NoSuchAlgorithmException, InvalidKeySpecException {
+        final KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(1024);
+        final PrivateKey privateKey = keyPairGenerator.generateKeyPair().getPrivate();
+
+        System.out.println(ConverterHelper.bytesToHex(privateKey.getEncoded()));
+
+        final KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        final EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKey.getEncoded());
+        final PrivateKey privateKey2 = keyFactory.generatePrivate(privateKeySpec);
+
+        System.out.println(ConverterHelper.bytesToHex(privateKey2.getEncoded()));
+    }
+
+    @Test
+    void privateKeyToKeySpec() throws NoSuchAlgorithmException, InvalidKeySpecException {
+        final KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(1024);
+        final PrivateKey privateKey = keyPairGenerator.generateKeyPair().getPrivate();
+        final KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        final RSAPrivateKeySpec privateKeySpec = keyFactory.getKeySpec(privateKey, RSAPrivateKeySpec.class);
     }
 }
