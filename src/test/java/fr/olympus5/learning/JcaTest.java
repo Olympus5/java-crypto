@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
@@ -19,7 +20,6 @@ import java.security.spec.*;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
-import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -242,5 +242,33 @@ class JcaTest {
         secureRandom.setSeed(seed);
         final int randomValue = secureRandom.nextInt();
         System.out.println("random value: " + randomValue);
+    }
+
+    @Test
+    void algorithmParameters() throws NoSuchAlgorithmException, InvalidParameterSpecException, IOException {
+        final BigInteger p = new BigInteger("D24700960FFA32D3F1557344E5871"
+                + "01237532CC641646ED7A7C104743377F6D46251698B665CE2A6"
+                + "CBAB6714C2569A7D2CA22C0CF03FA40AC930201090202020", 16);
+        final BigInteger q = new BigInteger("09", 16);
+        final BigInteger g = new BigInteger("512");
+        final DSAParameterSpec dsaParameterSpec = new DSAParameterSpec(p, q, g);
+        final AlgorithmParameters algorithmParameters = AlgorithmParameters.getInstance("DSA");
+        algorithmParameters.init(dsaParameterSpec);
+
+        System.out.println(ConverterHelper.bytesToHex(algorithmParameters.getEncoded()));
+    }
+
+    @Test
+    void algorithmParameterGenerator() throws NoSuchAlgorithmException, InvalidParameterSpecException {
+        final AlgorithmParameterGenerator algorithmParameterGenerator = AlgorithmParameterGenerator.getInstance("DSA");
+        final AlgorithmParameters algorithmParameters = algorithmParameterGenerator.generateParameters();
+        final DSAParameterSpec parameterSpec = algorithmParameters.getParameterSpec(DSAParameterSpec.class);
+        final BigInteger p = parameterSpec.getP();
+        final BigInteger q = parameterSpec.getQ();
+        final BigInteger g = parameterSpec.getG();
+
+        System.out.println("P: " + p);
+        System.out.println("Q: " + q);
+        System.out.println("G: " + g);
     }
 }
