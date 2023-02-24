@@ -33,11 +33,13 @@ class JcaTest {
     private static final String KEY_STORE_NAME = "keystore.store";
     private static final String CERTIFICATE_NAME = "jca.crt";
     private static final FileSystem FILE_SYSTEM = FileSystems.getDefault();
+    private final String PKCS8_KEY_NAME = "rsa.pkcs8";
 
     private Path outputFile;
     private Path inputFile;
     private Path keyStoreFile;
     private Path certificateFile;
+    private Path privateKeyFile;
 
     @BeforeEach
     void setUp() throws IOException, URISyntaxException {
@@ -46,6 +48,7 @@ class JcaTest {
         keyStoreFile = Files.createFile(FILE_SYSTEM.getPath(KEY_STORE_NAME));
         final URI certificateUri = Thread.currentThread().getContextClassLoader().getResource(CERTIFICATE_NAME).toURI();
         certificateFile = FILE_SYSTEM.provider().getPath(certificateUri);
+        privateKeyFile = FILE_SYSTEM.provider().getPath(Thread.currentThread().getContextClassLoader().getResource(PKCS8_KEY_NAME).toURI());
     }
 
     @AfterEach
@@ -306,5 +309,19 @@ class JcaTest {
             final CertPath certPath = certificateFactory.generateCertPath(certificateList);
             System.out.println(certPath);
         }
+    }
+
+    @Test
+    void pkcs8EncodedKeySpec() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, SignatureException {
+        final byte[] privateKeyBytes = Files.readAllBytes(privateKeyFile);
+        final KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        final EncodedKeySpec encodedKeySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
+        final PrivateKey privateKey = keyFactory.generatePrivate(encodedKeySpec);
+        final Signature signature = Signature.getInstance("SHA1withRSA");
+        signature.initSign(privateKey);
+        signature.update("Hello world!".getBytes());
+        final byte[] signatureData = signature.sign();
+
+        System.out.println(ConverterHelper.bytesToHex(signatureData));
     }
 }
