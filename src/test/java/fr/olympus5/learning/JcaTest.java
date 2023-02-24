@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigInteger;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
@@ -16,10 +18,12 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.*;
+import java.security.cert.CertPath;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.security.spec.*;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Set;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -27,17 +31,21 @@ class JcaTest {
     private static final String OUTPUT_FILE_NAME = "jca.out";
     private static final String INPUT_FILE_NAME = "jca.in";
     private static final String KEY_STORE_NAME = "keystore.store";
+    private static final String CERTIFICATE_NAME = "jca.crt";
     private static final FileSystem FILE_SYSTEM = FileSystems.getDefault();
 
     private Path outputFile;
     private Path inputFile;
     private Path keyStoreFile;
+    private Path certificateFile;
 
     @BeforeEach
-    void setUp() throws IOException {
+    void setUp() throws IOException, URISyntaxException {
         outputFile = Files.createFile(FILE_SYSTEM.getPath(OUTPUT_FILE_NAME));
         inputFile = Files.createFile(FILE_SYSTEM.getPath(INPUT_FILE_NAME));
         keyStoreFile = Files.createFile(FILE_SYSTEM.getPath(KEY_STORE_NAME));
+        final URI certificateUri = Thread.currentThread().getContextClassLoader().getResource(CERTIFICATE_NAME).toURI();
+        certificateFile = FILE_SYSTEM.provider().getPath(certificateUri);
     }
 
     @AfterEach
@@ -270,5 +278,33 @@ class JcaTest {
         System.out.println("P: " + p);
         System.out.println("Q: " + q);
         System.out.println("G: " + g);
+    }
+
+    @Test
+    void readCertificate() throws IOException, CertificateException {
+        try (final InputStream is = Files.newInputStream(certificateFile)) {
+            final CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+            final Certificate certificate = certificateFactory.generateCertificate(is);
+            System.out.println(certificate);
+        }
+    }
+
+    @Test
+    void certPath() throws IOException, CertificateException, URISyntaxException {
+        final Path certificateFile2 = FILE_SYSTEM.provider().getPath(Thread.currentThread().getContextClassLoader().getResource("jca.2.crt").toURI());
+
+        try (final InputStream is = Files.newInputStream(certificateFile);
+             final InputStream is2 = Files.newInputStream(certificateFile2)) {
+            final CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
+
+            final List<Certificate> certificateList = new ArrayList<>();
+            final Certificate certificate = certificateFactory.generateCertificate(is);
+            certificateList.add(certificate);
+            final Certificate certificate2 = certificateFactory.generateCertificate(is2);
+            certificateList.add(certificate2);
+
+            final CertPath certPath = certificateFactory.generateCertPath(certificateList);
+            System.out.println(certPath);
+        }
     }
 }
