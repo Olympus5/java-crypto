@@ -148,3 +148,45 @@ openssl x509 -text -noout -in <cert-cer>
 ```shell
 openssl verify -verbose -CAfile <cert-ca> <cert-cer>
 ```
+
+### Other
+
+#### Generate keystore
+
+```shell
+openssl pkcs12 -export -name <alias> -out <keystore> \
+  -inkey <cert-key> -in <cert-cer> -passin <key-pass> \
+  -passout <keystore-pass>
+```
+
+#### Convert a private key to PKCS8
+
+```shell
+# key format: textual (ex.: PEM) or binary (ex.: DER)
+openssl pkcs8 -topk8 -inform <key-format> -outform <p8-key-format> -in <key> -out <p8-key> -nocrypt
+```
+
+## Keytool
+
+### Create new keystore
+
+```shell
+keytool -keystore <keystore> -genkey -alias <alias> -keyalg <algorithm-to-generate-key>
+```
+
+### Import certificate
+
+```shell
+keytool -importcert -keystore <keystore> -alias <alias> -file <cert-cer>
+```
+
+### Import key pair (certificate with a private key)
+
+First generate a PKCS12 file, then import PKCS12 file into the destination keystore
+
+```shell
+keytool -importkeystore -deststoretype <store-type> \
+  -destkeystore <out-keystore> -srcstoretype <store-type> \
+  -srckeystore <in-keystore> -deststorepass <out-keystore-pass> \
+  -destkeypass <out-keystore-key-pass>
+```
