@@ -30,10 +30,10 @@ import static org.junit.jupiter.api.Assertions.fail;
 class JcaTest {
     private static final String OUTPUT_FILE_NAME = "jca.out";
     private static final String INPUT_FILE_NAME = "jca.in";
-    private static final String KEY_STORE_NAME = "keystore.store";
+    private static final String KEY_STORE_NAME = "store.p12";
     private static final String CERTIFICATE_NAME = "jca.crt";
     private static final FileSystem FILE_SYSTEM = FileSystems.getDefault();
-    private final String PKCS8_KEY_NAME = "rsa.pkcs8";
+    private static final String PKCS8_KEY_NAME = "rsa.pkcs8";
 
     private Path outputFile;
     private Path inputFile;
@@ -45,17 +45,18 @@ class JcaTest {
     void setUp() throws IOException, URISyntaxException {
         outputFile = Files.createFile(FILE_SYSTEM.getPath(OUTPUT_FILE_NAME));
         inputFile = Files.createFile(FILE_SYSTEM.getPath(INPUT_FILE_NAME));
-        keyStoreFile = Files.createFile(FILE_SYSTEM.getPath(KEY_STORE_NAME));
+        final URI keyStoreUri = Thread.currentThread().getContextClassLoader().getResource(KEY_STORE_NAME).toURI();
+        keyStoreFile = FILE_SYSTEM.provider().getPath(keyStoreUri);
         final URI certificateUri = Thread.currentThread().getContextClassLoader().getResource(CERTIFICATE_NAME).toURI();
         certificateFile = FILE_SYSTEM.provider().getPath(certificateUri);
-        privateKeyFile = FILE_SYSTEM.provider().getPath(Thread.currentThread().getContextClassLoader().getResource(PKCS8_KEY_NAME).toURI());
+        final URI privateKeyUri = Thread.currentThread().getContextClassLoader().getResource(PKCS8_KEY_NAME).toURI();
+        privateKeyFile = FILE_SYSTEM.provider().getPath(privateKeyUri);
     }
 
     @AfterEach
     void tearDown() throws IOException {
         Files.delete(outputFile);
         Files.delete(inputFile);
-        Files.delete(keyStoreFile);
     }
 
     @Test
@@ -153,13 +154,39 @@ class JcaTest {
     }
 
     @Test
-    void storeCertificate() {
-        fail();
+    void loadCertificate() throws KeyStoreException, IOException, CertificateException, NoSuchAlgorithmException {
+        final KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+
+        try(final InputStream is = Files.newInputStream(keyStoreFile)) {
+            keyStore.load(is, "changeit".toCharArray());
+            final String alias = "mycert";
+            final Certificate certificate = keyStore.getCertificate(alias);
+
+            System.out.println(certificate);
+        }
     }
 
     @Test
-    void storeKey() {
-        fail();
+    void loadKey() throws KeyStoreException, IOException, CertificateException, NoSuchAlgorithmException, UnrecoverableKeyException {
+        final KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+
+        try(final InputStream is = Files.newInputStream(keyStoreFile)) {
+            keyStore.load(is, "changeit".toCharArray());
+            final String alias = "mycert";
+            final Key key = keyStore.getKey(alias, "changeit".toCharArray());
+
+            if(key instanceof PrivateKey) {
+                final Certificate certificate = keyStore.getCertificate(alias);
+                final PublicKey publicKey = certificate.getPublicKey();
+                final PrivateKey privateKey = (PrivateKey) key;
+                final KeyPair keyPair = new KeyPair(publicKey, privateKey);
+
+                System.out.println("public key: " + ConverterHelper.bytesToHex(keyPair.getPublic().getEncoded()));
+                System.out.println("private key: " + ConverterHelper.bytesToHex(keyPair.getPrivate().getEncoded()));
+            } else {
+                System.out.println("secret key (public key): " + ConverterHelper.bytesToHex(key.getEncoded()));
+            }
+        }
     }
 
     @Test
