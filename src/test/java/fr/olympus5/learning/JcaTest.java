@@ -25,8 +25,6 @@ import java.security.cert.CertificateFactory;
 import java.security.spec.*;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
 class JcaTest {
     private static final String OUTPUT_FILE_NAME = "jca.out";
     private static final String INPUT_FILE_NAME = "jca.in";

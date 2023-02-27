@@ -163,7 +163,8 @@ openssl pkcs12 -export -name <alias> -out <keystore> \
 
 ```shell
 # key format: textual (ex.: PEM) or binary (ex.: DER)
-openssl pkcs8 -topk8 -inform <key-format> -outform <p8-key-format> -in <key> -out <p8-key> -nocrypt
+openssl pkcs8 -topk8 -inform <key-format> -outform <p8-key-format> \
+  -in <key> -out <p8-key> -nocrypt
 ```
 
 ## Keytool
@@ -171,13 +172,15 @@ openssl pkcs8 -topk8 -inform <key-format> -outform <p8-key-format> -in <key> -ou
 ### Create new keystore
 
 ```shell
-keytool -keystore <keystore> -genkey -alias <alias> -keyalg <algorithm-to-generate-key>
+keytool -keystore <keystore> -genkey -alias <alias> \
+  -keyalg <algorithm-to-generate-key>
 ```
 
 ### Import certificate
 
 ```shell
-keytool -importcert -keystore <keystore> -alias <alias> -file <cert-cer>
+keytool -importcert -keystore <keystore> -alias <alias> \
+  -file <cert-cer>
 ```
 
 ### Import key pair (certificate with a private key)
