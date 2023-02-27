@@ -1,20 +1,45 @@
 package fr.olympus5.learning;
 
 import fr.olympus5.helper.ConverterHelper;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.crypto.*;
-import javax.crypto.spec.DESKeySpec;
-import javax.crypto.spec.DESedeKeySpec;
-import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.PBEParameterSpec;
+import javax.crypto.spec.*;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 
 class JceTest {
+    private static final FileSystem FILE_SYSTEM = FileSystems.getDefault();
+    private static final String DECRYPTED_FILE_NAME = "jce.txt";
+    private static final String ENCRYPTED_FILE_NAME = "jce.enc";
+
+    private Path decryptedFile;
+    private Path encryptedFile;
+
+    @BeforeEach
+    void setUp() throws IOException {
+        decryptedFile = Files.createFile(FILE_SYSTEM.getPath(DECRYPTED_FILE_NAME));
+        Files.write(decryptedFile, "Hello World!".getBytes());
+        encryptedFile = Files.createFile(FILE_SYSTEM.getPath(ENCRYPTED_FILE_NAME));
+    }
+
+    @AfterEach
+    void tearDown() throws IOException {
+        Files.delete(decryptedFile);
+        Files.delete(encryptedFile);
+    }
+
     @Test
     void keyGeneratorWithKeySize() throws NoSuchAlgorithmException {
         final KeyGenerator keyGenerator = KeyGenerator.getInstance("DESede");
@@ -183,6 +208,80 @@ class JceTest {
         desDecipher.init(Cipher.DECRYPT_MODE, secretKey, desCipher.getParameters());
         final byte[] decryptedTextBytes = desDecipher.doFinal(encryptedTextBytes);
         System.out.println(new String(decryptedTextBytes));
+    }
+
+    @Test
+    void cipherInputStream() throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, IOException {
+        final KeyGenerator keyGenerator = KeyGenerator.getInstance("DES");
+        keyGenerator.init(56, new SecureRandom());
+        final SecretKey secretKey = keyGenerator.generateKey();
+        final Cipher cipher = Cipher.getInstance("DES");
+
+        System.out.println("original file: " + new String(Files.readAllBytes(decryptedFile)));
+
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        try (final InputStream is = Files.newInputStream(decryptedFile);
+             final CipherInputStream cis = new CipherInputStream(is, cipher)) {
+            final byte[] encryptedTextBytes = cis.readAllBytes();
+            Files.write(encryptedFile, encryptedTextBytes);
+        }
+
+        System.out.println("encrypted file: " + ConverterHelper.bytesToHex(Files.readAllBytes(encryptedFile)));
+
+        cipher.init(Cipher.DECRYPT_MODE, secretKey);
+        try (final InputStream is = Files.newInputStream(encryptedFile);
+             final CipherInputStream cis = new CipherInputStream(is, cipher)) {
+            final byte[] decryptedTextBytes = cis.readAllBytes();
+            System.out.println("decrypted content: " + new String(decryptedTextBytes));
+        }
+    }
+
+    @Test
+    void cipherBlockOutputStream() throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IOException, InvalidAlgorithmParameterException {
+        final byte[] textToEncryptBytes = "Hello World! This is the text to encrypt! It's fucking Awesome! Have a nice day :)".getBytes();
+        final Cipher cipher = Cipher.getInstance("DES/CFB8/PKCS5Padding");
+        final KeyGenerator keyGenerator = KeyGenerator.getInstance("DES");
+        keyGenerator.init(56);
+        final SecretKey secretKey = keyGenerator.generateKey();
+
+        System.out.println("original text: " + new String(textToEncryptBytes));
+
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        OutputStream os;
+        CipherOutputStream cos = null;
+        try {
+            os = Files.newOutputStream(encryptedFile);
+            cos = new CipherOutputStream(os, cipher);
+            for(int i = 0, blockSize = cipher.getBlockSize(); i < textToEncryptBytes.length; i += blockSize) {
+                cos.write(textToEncryptBytes, i, getNumberOfBytesToWrite(textToEncryptBytes, blockSize, i));
+                // flush encrypted block by encrypted block
+                cos.flush();
+            }
+        } finally {
+            // close() call the Cipher doFinal() method and the OutputStream flush() and close() methods
+            cos.close();
+        }
+
+        byte[] encryptedFileBytes = Files.readAllBytes(encryptedFile);
+        System.out.println("encrypted file: " + ConverterHelper.bytesToHex(encryptedFileBytes));
+
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(cipher.getIV()));
+        try {
+            os = Files.newOutputStream(decryptedFile);
+            cos = new CipherOutputStream(os, cipher);
+            for(int i = 0, blockSize = cipher.getBlockSize(); i < encryptedFileBytes.length; i += blockSize) {
+                cos.write(encryptedFileBytes, i, getNumberOfBytesToWrite(encryptedFileBytes, blockSize, i));
+                cos.flush();
+            }
+        } finally {
+            cos.close();
+        }
+
+        System.out.println("decrypted file: " + new String(Files.readAllBytes(decryptedFile)));
+    }
+
+    private static int getNumberOfBytesToWrite(byte[] textToEncryptBytes, int blockSize, int i) {
+        return (i + blockSize < textToEncryptBytes.length) ? i + blockSize - i : textToEncryptBytes.length - i;
     }
 
 }
