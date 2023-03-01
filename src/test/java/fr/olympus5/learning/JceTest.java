@@ -1,5 +1,6 @@
 package fr.olympus5.learning;
 
+import fr.olympus5.bean.Person;
 import fr.olympus5.helper.ConverterHelper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -252,13 +253,13 @@ class JceTest {
         try {
             os = Files.newOutputStream(encryptedFile);
             cos = new CipherOutputStream(os, cipher);
-            for(int i = 0, blockSize = cipher.getBlockSize(); i < textToEncryptBytes.length; i += blockSize) {
+            for (int i = 0, blockSize = cipher.getBlockSize(); i < textToEncryptBytes.length; i += blockSize) {
                 cos.write(textToEncryptBytes, i, getNumberOfBytesToWrite(textToEncryptBytes, blockSize, i));
                 // flush encrypted block by encrypted block
                 cos.flush();
             }
         } finally {
-            // close() call the Cipher doFinal() method and the OutputStream flush() and close() methods
+            // CipherOutputStream.close() call the Cipher doFinal() method and the OutputStream flush() and close() methods
             cos.close();
         }
 
@@ -269,7 +270,7 @@ class JceTest {
         try {
             os = Files.newOutputStream(decryptedFile);
             cos = new CipherOutputStream(os, cipher);
-            for(int i = 0, blockSize = cipher.getBlockSize(); i < encryptedFileBytes.length; i += blockSize) {
+            for (int i = 0, blockSize = cipher.getBlockSize(); i < encryptedFileBytes.length; i += blockSize) {
                 cos.write(encryptedFileBytes, i, getNumberOfBytesToWrite(encryptedFileBytes, blockSize, i));
                 cos.flush();
             }
@@ -280,8 +281,37 @@ class JceTest {
         System.out.println("decrypted file: " + new String(Files.readAllBytes(decryptedFile)));
     }
 
-    private static int getNumberOfBytesToWrite(byte[] textToEncryptBytes, int blockSize, int i) {
-        return (i + blockSize < textToEncryptBytes.length) ? i + blockSize - i : textToEncryptBytes.length - i;
+    private int getNumberOfBytesToWrite(byte[] textToEncryptBytes, int blockSize, int i) {
+        return (i + blockSize < textToEncryptBytes.length) ? blockSize : textToEncryptBytes.length - i;
     }
 
+    @Test
+    void encryptSerialization() throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, IOException, ClassNotFoundException {
+        final KeyGenerator keyGenerator = KeyGenerator.getInstance("DESede");
+        keyGenerator.init(112, SecureRandom.getInstance("SHA1PRNG"));
+        final SecretKey secretKey = keyGenerator.generateKey();
+        final Cipher cipher = Cipher.getInstance("DESede");
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        final SealedObject sealedObject = new SealedObject(new Person(1, "matin", "martin"), cipher);
+
+        final Person person = (Person) sealedObject.getObject(secretKey);
+
+        System.out.println(person);
+    }
+
+    @Test
+    void encryptSerializationV2() throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, IOException, ClassNotFoundException, BadPaddingException {
+        final KeyGenerator keyGenerator = KeyGenerator.getInstance("DESede");
+        keyGenerator.init(112, SecureRandom.getInstance("SHA1PRNG"));
+        final SecretKey secretKey = keyGenerator.generateKey();
+        final Cipher cipher = Cipher.getInstance("DESede");
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        final SealedObject sealedObject = new SealedObject(new Person(1, "matin", "martin"), cipher);
+
+        final Cipher decipher = Cipher.getInstance("DESede");
+        decipher.init(Cipher.DECRYPT_MODE, secretKey);
+        final Person person = (Person) sealedObject.getObject(decipher);
+
+        System.out.println(person);
+    }
 }
