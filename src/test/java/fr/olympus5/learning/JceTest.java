@@ -314,4 +314,15 @@ class JceTest {
 
         System.out.println(person);
     }
+
+    @Test
+    void mac() throws NoSuchAlgorithmException, InvalidKeyException {
+        final SecretKey secretKey = new SecretKeySpec("azerty".getBytes(), "HmacSHA512");
+
+        final Mac hmac = Mac.getInstance("HmacSHA512");
+        hmac.init(secretKey);
+        byte[] digest = hmac.doFinal("Hello world!".getBytes());
+
+        System.out.println(ConverterHelper.bytesToHex(digest));
+    }
 }
